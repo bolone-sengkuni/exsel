@@ -1,0 +1,411 @@
+import json
+import sys
+from datetime import datetime
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from app.config.imports import *
+
+
+def show_main_menu(profile: dict, display_quota: str, segments: dict):
+    clear_screen()
+    theme = get_theme()
+
+    expired_at_ts = profile.get("balance_expired_at")
+    expired_at_dt = (
+        datetime.fromtimestamp(expired_at_ts).strftime("%Y-%m-%d %H:%M:%S")
+        if expired_at_ts
+        else "-"
+    )
+    pulsa_str = get_rupiah(profile.get("balance", 0))
+
+    info_table = Table.grid(padding=(0, 1))
+    info_table.add_column(justify="left", style=get_theme_style("border_info"))
+    info_table.add_column(justify="left", style=get_theme_style("text_body"))
+
+    info_table.add_row(" Name", f": 👤 [bold {theme['text_body']}]{profile['name']}[/]")
+    info_table.add_row(
+        " Nomor", f": 📞 [bold {theme['text_body']}]{profile['number']}[/]"
+    )
+    info_table.add_row(
+        " Type",
+        f": 🧾 [{theme['text_body']}]{profile['subscription_type']} ({profile['subscriber_id']})[/]",
+    )
+    info_table.add_row(" Pulsa", f": 💰 Rp [{theme['text_money']}]{pulsa_str}[/]")
+    info_table.add_row(" Kuota", f": 📊 [{theme['text_date']}]{display_quota}[/]")
+    info_table.add_row(
+        " Tiering", f": 🏅 [{theme['text_date']}]{profile['point_info']}[/]"
+    )
+    info_table.add_row(" Masa Aktif", f": ⏳ [{theme['text_date']}]{expired_at_dt}[/]")
+
+    console.print(
+        Panel(
+            info_table,
+            title=f"[{get_theme_style('text_title')}]✨ Informasi Akun ✨[/]",
+            title_align="center",
+            border_style=get_theme_style("border_info"),
+            padding=(1, 2),
+            expand=True,
+        )
+    )
+
+    # special_packages = segments.get("special_packages", [])
+    # if special_packages:
+    #     best = random.choice(special_packages)
+    #     name = best.get("name", "-")
+    #     diskon_percent = best.get("diskon_percent", 0)
+    #     diskon_price = best.get("diskon_price", 0)
+    #     original_price = best.get("original_price", 0)
+    #     emoji_diskon = "💸" if diskon_percent >= 50 else ""
+    #     emoji_kuota = "🔥" if best.get("kuota_gb", 0) >= 100 else ""
+
+    #     special_text = (
+    #         f"[bold {theme['text_title']}]🔥🔥🔥 Paket Special Untukmu! 🔥🔥🔥[/{theme['text_title']}]\n\n"
+    #         f"[{theme['text_body']}]{emoji_kuota} {name}[/{theme['text_body']}]\n"
+    #         f"Diskon {diskon_percent}% {emoji_diskon} "
+    #         f"Rp[{theme['text_err']}][strike]{get_rupiah(original_price)}[/strike][/{theme['text_err']}] ➡️ "
+    #         f"Rp[{theme['text_money']}]{get_rupiah(diskon_price)}[/{theme['text_money']}]"
+    #     )
+
+    #     console.print(
+    #         Panel(
+    #             Align.center(special_text),
+    #             border_style=theme["border_warning"],
+    #             padding=(0, 2),
+    #             width=console.size.width,
+    #         )
+    #     )
+    #     console.print(
+    #         Align.center(
+    #             f"[{theme['text_sub']}]Pilih [Y] untuk lihat semua paket spesial[/{theme['text_sub']}]"
+    #         )
+    #     )
+
+    menu_table = Table(show_header=False, box=MINIMAL_DOUBLE_HEAD, expand=True)
+    menu_table.add_column(
+        "Kode", justify="right", style=get_theme_style("text_key"), width=6
+    )
+    menu_table.add_column("Aksi", style=get_theme_style("text_body"))
+
+    menu_table.add_row("1", "🔐 Login/Ganti akun")
+    menu_table.add_row("2", "📑 Lihat Paket Saya")
+    menu_table.add_row("3", "🔥 Beli Paket Hot Promo")
+    menu_table.add_row("4", "🔥 Beli Paket Hot Promo-2")
+    menu_table.add_row("5", "💴 Beli Paket Via Option Code")
+    menu_table.add_row("6", "💵 Beli Paket Via Family Code")
+    menu_table.add_row("7", "🔁 Beli Semua Paket di Family Code")
+    menu_table.add_row("8", "🔂 Beli berulang dari Family Code")
+    menu_table.add_row("", "")
+    menu_table.add_row("D", "🎭 Ciptakan Paket bundle (decoy)")
+    menu_table.add_row("F", "💾 Simpan/Kelola Family Code")
+    menu_table.add_row("B", "📌 List Bookmark Paket")
+    menu_table.add_row("C", f"[{theme['text_body']}]🧹 Bersihkan Cache akun[/]")
+    menu_table.add_row("M", f"[{theme['text_body']}]☕ Menu Berikutnya..[/]")
+    menu_table.add_row("", "")
+
+    menu_table.add_row("69", f"[{theme['text_sub']}]🎨 Ganti Tema CLI[/]")
+    menu_table.add_row("99", f"[{theme['text_err']}]⛔ Tutup Aplikasi[/]")
+
+    console.print(
+        Panel(
+            menu_table,
+            title=f"[{get_theme_style('text_title')}]✨ Menu Utama ✨[/]",
+            title_align="center",
+            border_style=get_theme_style("border_primary"),
+            padding=(0, 1),
+            expand=True,
+        )
+    )
+
+
+def show_main_menu2(active_user: dict, profile: dict):
+    theme = get_theme()
+
+    if not active_user or "tokens" not in active_user:
+        print_error("❌", "User belum aktif, silakan login dulu.")
+        pause()
+        return
+
+    while True:
+        clear_screen()
+
+        console.print(
+            Panel(
+                Align.center("☕ Halaman Menu-2", vertical="middle"),
+                border_style=theme["border_info"],
+                padding=(1, 2),
+                expand=True,
+            )
+        )
+        simple_number()
+
+        menu_table = Table(show_header=False, box=MINIMAL_DOUBLE_HEAD, expand=True)
+        menu_table.add_column(
+            "Kode", justify="right", style=get_theme_style("text_key"), width=6
+        )
+        menu_table.add_column("Aksi", style=get_theme_style("text_body"))
+
+        menu_table.add_row("10", "📜 Riwayat Transaksi")
+        menu_table.add_row("11", "👨‍👩‍👧‍👦 Akrab Organizer")
+        menu_table.add_row("12", "👥 Circle")
+        menu_table.add_row("13", "🏬 Store Segments")
+        menu_table.add_row("14", "📂 Store Family List")
+        menu_table.add_row("15", "📦 Store Packages")
+        menu_table.add_row("16", "🎁 Redeemables")
+        menu_table.add_row("", "")
+        menu_table.add_row("N", "🔔 Notifikasi")
+        menu_table.add_row("R", "📝 Register")
+        menu_table.add_row("V", "✅ Validate MSISDN")
+        # menu_table.add_row("", "")
+        menu_table.add_row("00", f"[{theme['text_sub']}]Kembali ke menu utama[/]")
+
+        console.print(
+            Panel(
+                menu_table,
+                title=f"[{get_theme_style('text_title')}]🧾 Menu[/]",
+                border_style=theme["border_primary"],
+                padding=(0, 1),
+                expand=True,
+            )
+        )
+
+        choice = console.input(
+            f"[{theme['text_sub']}]Pilih menu:[/{theme['text_sub']}] "
+        ).strip()
+        if choice == "10":
+            show_transaction_history(AuthInstance.api_key, active_user["tokens"])
+        elif choice == "11":
+            show_family_info(AuthInstance.api_key, active_user["tokens"])
+        elif choice == "12":
+            show_circle_info(AuthInstance.api_key, active_user["tokens"])
+        elif choice == "13":
+            is_enterprise = input("🏬 Enterprise store? (y/n): ").lower() == "y"
+            show_store_segments_menu(is_enterprise)
+        elif choice == "14":
+            is_enterprise = input("📂 Enterprise? (y/n): ").lower() == "y"
+            show_family_list_menu(profile["subscription_type"], is_enterprise)
+        elif choice == "15":
+            is_enterprise = input("📦 Enterprise? (y/n): ").lower() == "y"
+            show_store_packages_menu(profile["subscription_type"], is_enterprise)
+        elif choice == "16":
+            is_enterprise = input("🎁 Enterprise? (y/n): ").lower() == "y"
+            show_redeemables_menu(is_enterprise)
+
+        elif choice.lower() == "n":
+            show_notification_menu()
+        elif choice.lower() == "r":
+            msisdn = input("📝 Masukkan msisdn (628xxxx): ")
+            nik = input("Masukkan NIK: ")
+            kk = input("Masukkan KK: ")
+            res = dukcapil(AuthInstance.api_key, msisdn, kk, nik)
+            print_panel("📑 Hasil Registrasi", json.dumps(res, indent=2))
+            pause()
+        elif choice.lower() == "v":
+            msisdn = input("✅ Masukkan msisdn untuk validasi (628xxxx): ")
+            res = validate_msisdn(AuthInstance.api_key, active_user["tokens"], msisdn)
+            print_panel("📑 Hasil Validasi", json.dumps(res, indent=2))
+            pause()
+        elif choice == "00":
+            live_loading(text="Kembali ke menu utama...", theme=theme)
+            return
+        else:
+            print_warning("⚠️", "Pilihan tidak valid. Silakan coba lagi.")
+            pause()
+
+
+def main():
+    while True:
+        theme = get_theme()
+        active_user = AuthInstance.get_active_user()
+
+        if active_user is not None:
+            account_id = active_user["number"]
+
+            with live_loading("🔄 Memuat data akun...", get_theme()):
+                # Balance cache per akun (TTL 30 detik)
+                balance = get_cache(account_id, "balance", ttl=90)
+                if not balance:
+                    balance = get_balance(
+                        AuthInstance.api_key, active_user["tokens"]["id_token"]
+                    )
+                    set_cache(account_id, "balance", balance)
+
+                # Quota cache per akun (TTL 30 detik)
+                quota = get_cache(account_id, "quota", ttl=60)
+                if not quota:
+                    quota = (
+                        get_quota(
+                            AuthInstance.api_key, active_user["tokens"]["id_token"]
+                        )
+                        or {}
+                    )
+                    set_cache(account_id, "quota", quota)
+
+                # Segments cache per akun (TTL 300 detik, file-based)
+                segments = get_cache(account_id, "segments", ttl=300, use_file=True)
+                if not segments:
+                    segments = (
+                        dash_segments(
+                            AuthInstance.api_key,
+                            active_user["tokens"]["id_token"],
+                            active_user["tokens"]["access_token"],
+                        )
+                        or {}
+                    )
+                    set_cache(account_id, "segments", segments, use_file=True)
+
+            remaining = quota.get("remaining", 0)
+            total = quota.get("total", 0)
+            has_unlimited = quota.get("has_unlimited", False)
+            if total > 0 or has_unlimited:
+                display_quota = f"{remaining / 1e9:.2f} / {total / 1e9:.2f} GB" + (
+                    " (Unlimited)" if has_unlimited else ""
+                )
+            else:
+                display_quota = "-"
+
+            point_info = "Points: N/A | Tier: N/A"
+            if active_user["subscription_type"] == "PREPAID":
+                # Tiering cache per akun (TTL 300 detik)
+                tiering_data = get_cache(account_id, "tiering", ttl=240)
+                if not tiering_data:
+                    tiering_data = get_tiering_info(
+                        AuthInstance.api_key, active_user["tokens"]
+                    )
+                    set_cache(account_id, "tiering", tiering_data)
+                point_info = f"Points: {tiering_data.get('current_point', 0)} | Tier: {tiering_data.get('tier', 0)}"
+
+            profile = {
+                "number": active_user["number"],
+                "subscriber_id": active_user["subscriber_id"],
+                "subscription_type": active_user["subscription_type"],
+                "balance": balance.get("remaining"),
+                "balance_expired_at": balance.get("expired_at"),
+                "point_info": point_info,
+                "name": active_user["name"],
+            }
+
+            show_main_menu(profile, display_quota, segments)
+
+            choice = console.input(
+                f"[{theme['text_sub']}]👉 Pilih menu:[/{theme['text_sub']}] "
+            ).strip()
+
+            if choice.lower() == "t":
+                pause()
+            elif choice == "1":
+                selected_user_number = show_account_menu()
+                if selected_user_number:
+                    AuthInstance.set_active_user(selected_user_number)
+                    print_success("🔐", f"Akun aktif diganti ke {selected_user_number}")
+                else:
+                    print_error("❌", "Tidak ada user terpilih atau gagal memuat user.")
+                continue
+            elif choice == "2":
+                fetch_my_packages()
+                continue
+            elif choice == "3":
+                show_hot_menu()
+            elif choice == "4":
+                show_hot_menu2()
+            elif choice == "5":
+                option_code = input("🔎 Masukkan option code: ")
+                if option_code == "99":
+                    continue
+                show_package_details(
+                    AuthInstance.api_key, active_user["tokens"], option_code, False
+                )
+            elif choice == "6":
+                family_code = input("🔎 Masukkan family code: ")
+                if family_code == "99":
+                    continue
+                get_packages_by_family(family_code)
+            elif choice == "7":
+                family_code = input("🔎 Masukkan family code: ")
+                if family_code == "99":
+                    continue
+                start_from_option = input("Mulai dari option number (default 1): ")
+                try:
+                    start_from_option = int(start_from_option)
+                except ValueError:
+                    start_from_option = 1
+                use_decoy = input("Gunakan decoy package? (y/n): ").lower() == "y"
+                pause_on_success = input("Pause tiap sukses? (y/n): ").lower() == "y"
+                delay_seconds = input("Delay antar pembelian (0 = tanpa delay): ")
+                try:
+                    delay_seconds = int(delay_seconds)
+                except ValueError:
+                    delay_seconds = 0
+                purchase_by_family(
+                    family_code,
+                    use_decoy,
+                    pause_on_success,
+                    delay_seconds,
+                    start_from_option,
+                )
+            elif choice == "8":
+                family_code = input("Enter family code: ")
+                try:
+                    order = int(input("Enter order number: ") or 1)
+                except ValueError:
+                    order = 1
+                try:
+                    delay = int(input("Enter delay in seconds: ") or 0)
+                except ValueError:
+                    delay = 0
+                pause_on_success = input("Aktifkan mode pause? (y/n): ").lower() == "y"
+                while True:
+                    should_continue = purchase_loop(
+                        family_code=family_code,
+                        order=order,
+                        use_decoy=True,
+                        delay=delay,
+                        pause_on_success=pause_on_success,
+                    )
+                    if not should_continue:
+                        break
+                continue
+
+            elif choice.lower() == "d":
+                show_bundle_menu()
+            elif choice.lower() == "f":
+                show_family_grup_menu()
+            elif choice.lower() == "b":
+                show_bookmark_menu()
+            elif choice.lower() == "m":
+                show_main_menu2(active_user, profile)
+            elif choice.lower() == "c":
+                clear_cache(account_id)
+                print_success(
+                    "🧹", f"Cache untuk akun {account_id} berhasil dibersihkan."
+                )
+                pause()
+            elif choice == "69":
+                show_theme_menu()
+            elif choice == "99":
+                print_panel("👋 Sampai jumpa!", "Aplikasi ditutup dengan aman.")
+                sys.exit(0)
+
+            elif choice.lower() == "y":
+                show_special_for_you_menu(active_user["tokens"])
+            elif choice.lower() == "s":
+                enter_sentry_mode()
+            else:
+                print_warning("⚠️", "Pilihan tidak valid. Silakan coba lagi.")
+                pause()
+        else:
+            selected_user_number = show_account_menu()
+            if selected_user_number:
+                AuthInstance.set_active_user(selected_user_number)
+                print_success("🔐", f"Akun aktif diganti ke {selected_user_number}")
+            else:
+                print_error("❌", "Tidak ada user terpilih atau gagal memuat user.")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except KeyboardInterrupt:
+        print_error("👋 Keluar", "Aplikasi dihentikan oleh pengguna.")

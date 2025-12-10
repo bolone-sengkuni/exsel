@@ -1,0 +1,24 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+refresh-tokens.json
+.cache.json
+ax.fp
+active.number
+tes.py
+.vscode
+ax.fp
+bookmark.json
+active.number
+.ruff_cache
+family_codes.json
+uv.lock
+.python-version
+theme_config.json
